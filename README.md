@@ -160,6 +160,7 @@ HTTP : 80 → Forward to Target Group
 
 ---
 
+
 ## ✅ Final Verification Checklist
 
 ✔ Target Group → **Healthy**
@@ -167,6 +168,7 @@ HTTP : 80 → Forward to Target Group
 ✔ EC2 Public IP → NOT accessible
 
 ---
+
 
 ## ❌ MISTAKES I MADE (IMPORTANT SECTION)
 
