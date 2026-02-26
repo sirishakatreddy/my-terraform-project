@@ -1,84 +1,227 @@
-# Terraform VPC and EC2 Project
+# 🚀 AWS Application Load Balancer with EC2 (Terraform)
 
-This repository contains a Terraform project that provisions AWS infrastructure using Infrastructure as Code (IaC).
+This repository documents a **real‑world AWS architecture** using **Application Load Balancer (ALB)**, **EC2 web servers**, and **Terraform**.
 
-The main objective of this project is to create a custom VPC and an EC2 instance in AWS.
-
----
-
-## Repository Structure
-
-my-terraform-project/
-└── project-vpc-ec2/
-    ├── main.tf
-    ├── backend.tf
-    ├── provider.tf
-    ├── variables.tf
-    └── outputs.tf
+This README is intentionally detailed so that **anyone following it will NOT repeat the mistakes I made** while building this project.
 
 ---
 
-## AWS Resources Created
+## 📌 Architecture Overview
 
-This Terraform project creates the following AWS resources:
-
-- VPC
-- Public Subnet
-- Internet Gateway
-- Route Table and Route Table Association
-- Security Group
-- EC2 Instance
-- S3 Backend for Terraform state (if configured)
-
----
-
-## File Description
-
-main.tf  
-Contains the main Terraform configuration for VPC, subnet, EC2, and networking resources.
-
-provider.tf  
-Defines the AWS provider and region.
-
-backend.tf  
-Configures remote backend using S3 for Terraform state storage.
-
-variables.tf  
-Defines input variables used in the project.
-
-outputs.tf  
-Displays output values such as VPC ID and EC2 details.
+```
+Internet
+   |
+   v
+Application Load Balancer (Public)
+   |
+   v
+Target Group (HTTP : 80)
+   |
+   v
+EC2 Web Servers (Apache)
+```
 
 ---
 
-## How to Use This Project
+## 🧰 Tools & Services Used
 
-1. Clone the repository
-2. Navigate to the project directory:
-   project-vpc-ec2
-3. Initialize Terraform:
-   terraform init
-4. Review the plan:
-   terraform plan
-5. Apply the configuration:
-   terraform apply
+* AWS EC2
+* AWS Application Load Balancer (ALB)
+* AWS Target Groups
+* AWS Security Groups
+* Terraform
+* Apache Web Server
 
 ---
 
-## Prerequisites
+## 🎯 Project Goal
 
-- AWS Account
-- AWS CLI configured
-- Terraform installed
+* Deploy **two EC2 web servers** using Terraform
+* Place them behind an **Application Load Balancer**
+* Ensure:
 
----
-
-## Purpose
-
-This project is created for learning Terraform and AWS services such as VPC and EC2, and for academic / interview preparation.
+  * ALB DNS serves HTML output
+  * Target Group stays **Healthy**
+  * EC2 instances are **not publicly exposed**
 
 ---
 
-## Author
+## 📁 Terraform File Structure
 
-Sirisha Katreddy
+```
+project/
+├── provider.tf
+├── variables.tf
+├── terraform.tfvars
+├── main.tf
+├── security_groups.tf
+├── output.tf
+├── userdata1.sh
+├── userdata2.sh
+```
+
+---
+
+## 🛠 Step‑by‑Step Setup
+
+### Step 1: Create VPC and Subnets
+
+* Create a VPC
+* Create at least **2 public subnets** (for ALB)
+* Ensure route table has Internet Gateway attached
+
+---
+
+### Step 2: Create Security Groups (MOST IMPORTANT)
+
+#### ✅ 1️⃣ ALB Security Group (`alb-sg`)
+
+**Attached ONLY to ALB**
+
+Inbound Rules:
+
+```
+HTTP 80 → 0.0.0.0/0
+```
+
+Outbound:
+
+```
+All traffic → 0.0.0.0/0
+```
+
+---
+
+#### ✅ 2️⃣ EC2 Security Group (`ec2-sg`)
+
+**Attached ONLY to Web EC2 instances**
+
+Inbound Rules:
+
+```
+SSH 22  → Your IP
+HTTP 80 → alb-sg
+```
+
+Outbound:
+
+```
+All traffic → 0.0.0.0/0
+```
+
+🚫 **Never add `0.0.0.0/0` to EC2 HTTP**
+
+---
+
+### Step 3: Create EC2 Web Servers (Terraform)
+
+* Launch **2 EC2 instances** using Terraform
+* Attach **only `ec2-sg`**
+* Install Apache (manual or user_data)
+
+Verification:
+
+```bash
+curl localhost
+```
+
+Should return HTML content.
+
+---
+
+### Step 4: Create Target Group
+
+Target Group settings:
+
+```
+Protocol: HTTP
+Port: 80
+Health check path: /
+Health check port: traffic port
+```
+
+Register **only Terraform‑created EC2 instances**.
+
+---
+
+### Step 5: Create Application Load Balancer
+
+* Internet‑facing ALB
+* Attach **only `alb-sg`**
+* Place in public subnets
+
+---
+
+### Step 6: Create Listener
+
+```
+HTTP : 80 → Forward to Target Group
+```
+
+---
+
+## ✅ Final Verification Checklist
+
+✔ Target Group → **Healthy**
+✔ ALB DNS → HTML output
+✔ EC2 Public IP → NOT accessible
+
+---
+
+## ❌ MISTAKES I MADE (IMPORTANT SECTION)
+
+### ❌ Mistake 1: Using the SAME Security Group for ALB and EC2
+
+**This was the root cause of all issues.**
+
+What I did:
+
+* Attached `ec2-sg` to BOTH ALB and EC2
+
+What happened:
+
+* Target Group kept becoming unhealthy
+* ALB DNS worked sometimes and failed sometimes
+* Removing `0.0.0.0/0` broke everything again
+
+✅ **Fix:**
+
+> ALB and EC2 must ALWAYS have **separate security groups**.
+
+---
+
+### ❌ Mistake 2: Keeping `HTTP 80 → 0.0.0.0/0` on EC2
+
+Why it was wrong:
+
+* Exposed EC2 directly to the internet
+* Bypassed ALB
+* Hid the real problem
+
+When it is acceptable:
+
+* ONLY for temporary debugging
+
+---
+
+## 🎤 Interview‑Ready Explanation
+
+> "My target group was unhealthy because I mistakenly attached the same security group to both the ALB and EC2 instances. This caused ALB health checks to fail intermittently. Once I separated the security groups and allowed EC2 to accept traffic only from the ALB security group, the target group became healthy and the application worked correctly."
+
+---
+
+## 🚀 Future Improvements
+
+* Add `user_data` to automate Apache installation
+* Add HTTPS using ACM
+* Add Auto Scaling Group
+* Modularize Terraform code
+
+---
+
+## 🏁 Final Note
+
+This project taught me **real AWS debugging**, not just theory.
+If you follow this README step‑by‑step, you will **avoid all the mistakes I made**.
+
+Happy Cloud Building ☁️🚀
