@@ -115,25 +115,16 @@ resource "aws_s3_bucket" "My_bucket" {
 }
 
 # Creating Ec2-instances
-resource "aws_instance" "Webserver1" {
+resource "aws_instance" "Web" {
+  count                  = 2
   ami                    = var.instance_ami
   instance_type          = var.instance_type
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   subnet_id              = aws_subnet.subnet1.id
-  user_data              = base64encode(file("userdata1.sh"))
-  tags = {
-    Name = "Webserver1"
-  }
-}
+  user_data = file("userdata.sh")
 
-resource "aws_instance" "Webserver2" {
-  ami                    = var.instance_ami
-  instance_type          = var.instance_type
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
-  subnet_id              = aws_subnet.subnet2.id
-  user_data              = base64encode(file("userdata2.sh"))
   tags = {
-    Name = "Webserver2"
+    Name = "terraform-web-${count.index + 1}"
   }
 }
 
@@ -162,17 +153,13 @@ resource "aws_lb_target_group" "TG" {
 }
 
 # Attaching Load Balancer
-resource "aws_lb_target_group_attachment" "attach1" {
+resource "aws_lb_target_group_attachment" "attach" {
+  count            = length(aws_instance.Web)
   target_group_arn = aws_lb_target_group.TG.arn
-  target_id        = aws_instance.Webserver1.id
+  target_id        = aws_instance.Web[count.index].id
   port             = 80
 }
 
-resource "aws_lb_target_group_attachment" "attach2" {
-  target_group_arn = aws_lb_target_group.TG.arn
-  target_id        = aws_instance.Webserver2.id
-  port             = 80
-}
 
 # Creating Listener
 resource "aws_lb_listener" "listener" {
