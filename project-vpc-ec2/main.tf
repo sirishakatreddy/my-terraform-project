@@ -32,6 +32,7 @@ resource "aws_route_table" "RT" {
     gateway_id = aws_internet_gateway.igw.id
   }
 }
+
 # Creating Subnet Association
 resource "aws_route_table_association" "rta1" {
   subnet_id      = aws_subnet.subnet1.id
@@ -107,18 +108,12 @@ resource "aws_security_group" "ec2_sg" {
     Name = "ec2-sg"
   }
 }
+
 # Creating S3 Bucket
 resource "aws_s3_bucket" "My_bucket" {
   bucket = var.state_bucket_name
-
-  versioning {
-    enabled = true
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
+
 # Creating Ec2-instances
 resource "aws_instance" "Webserver1" {
   ami                    = var.instance_ami
@@ -147,10 +142,8 @@ resource "aws_lb" "My_ALB" {
   name               = "myalb"
   internal           = false
   load_balancer_type = "application"
-
   security_groups = [aws_security_group.ec2_sg.id]
   subnets         = [aws_subnet.subnet1.id, aws_subnet.subnet2.id]
-
   tags = {
     Name = "web"
   }
@@ -162,7 +155,6 @@ resource "aws_lb_target_group" "TG" {
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.My_VPC.id
-
   health_check {
     path = "/"
     port = "traffic-port"
@@ -187,7 +179,6 @@ resource "aws_lb_listener" "listener" {
   load_balancer_arn = aws_lb.My_ALB.arn
   port              = 80
   protocol          = "HTTP"
-
   default_action {
     target_group_arn = aws_lb_target_group.TG.arn
     type             = "forward"
